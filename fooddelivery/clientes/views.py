@@ -1,7 +1,8 @@
 from multiprocessing import context
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.views import View
 from .models import Categoria, MenuItem, Pedido
+from django.core.mail import send_mail
 # Create your views here.
 
 class Index(View):
@@ -29,6 +30,13 @@ class Pedidos(View):
        #renderizar o template
         return render(request,'clientes/pedidos.html', context)
     def post(self,request, *args, **kwargs ):
+        nome = request.POST.get('name')
+        email = request.POST.get('email')
+        rua = request.POST.get('street')
+        cidade = request.POST.get('city')
+        estado = request.POST.get('state')
+        cep = request.POST.get('zip')
+        
         itens_pedido = {
             'itens':[]
         }
@@ -50,13 +58,51 @@ class Pedidos(View):
             preco += item['preco']
             itens_id.append(item['id'])
             
-        pedido = Pedido.objects.create(preco=preco)
+        pedido = Pedido.objects.create(
+            preco=preco,
+            nome=nome,
+            email=email,
+            rua=rua,
+            cidade=cidade,
+            estado=estado,
+            cep=cep
+            )
         pedido.itens.add(*itens_id)
+        
+        #Depois de tudo feito, envie e-mail de confirmação para o usuário
+        corpo = ('Thank you for your order!  Your food is being made and will be delivered soon!\n'
+        f'Your total: {preco}\n'
+        'Thank you again for your order!')
+        
+        send_mail(
+            'Thank You For Your Order!',
+            corpo,
+            'example@example.com',
+            [email],
+            fail_silently=False
+        )
         
         context = {
             'itens': itens_pedido['itens'],
             'preco':preco,
             
         }
-        return render(request, 'clientes/pedidos_confirmacao.html', context)
+        return redirect('confirmacao_pedido', pk=pedido.pk)
         
+class ConfirmacaoPedido(View):
+    def get(self,request, pk, *args, **kwargs):
+        pedido = Pedido.objects.get(pk=pk)
+        context = {
+            'pk': pedido.pk,
+            'itens': pedido.itens,
+            'preco': pedido.preco
+        }
+        
+        return render(request, 'clientes/pedidos_confirmacao.html', context)
+    
+    def post(self,request, pk, *args, **kwargs):
+        print(request.body)
+        
+class ConfirmacaoPagPedido(View):
+    def get(self, request, *args, **kwargs):
+        return render(request, 'clientes/confirmacao_pag_pedido.html')

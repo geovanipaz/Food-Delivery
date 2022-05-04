@@ -11,12 +11,83 @@
     <div class="row justify-content-center mt-5">
         <div class="col-md-5 col-sm-12 text-center">
             <h3 class="pb-3">Order Summary:</h3>
-            {{teste}}
-            {% for item in itens %}
+            
+            {% for item in itens.all %}
                 <p>{{ item.nome }} <span class="pl-3">{{ item.preco }}</span></p>
             {% endfor %}
             <p class="font-weight-bold pt-4">Total: {{ preco }}</p>
         </div>
     </div>
+    <div class="row justify-content-center pb-2">
+        <div class="col-md-6 text-center">
+            <h3>Pague agora ou Pague na entrega</h3>
+        </div>
+    </div>
+    <div class="row justify-content-center pb-5">
+        <div class="col-md-6 text-center">
+            <div id="paypal-button-container"></div>
+        </div>
+    </div>
 </div>
+<script src="https://www.paypal.com/sdk/js?client-id=test&currency=USD"></script>
+    <!-- Set up a container element for the button -->
+    <div id="paypal-button-container"></div>
+    <script>
+        
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        // Does this cookie string begin with the name we want?
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+            const csrftoken = getCookie('csrftoken');
+      paypal.Buttons({
+        // Sets up the transaction when a payment button is clicked
+        createOrder: (data, actions) => {
+          return actions.order.create({
+            purchase_units: [{
+              amount: {
+                
+                value: '{{preco}}' // Can also reference a variable or function
+              }
+            }]
+          });
+        },
+        // Finalize the transaction after payer approval
+        onApprove: (data, actions) => {
+          return actions.order.capture().then(function(orderData) {
+            // Successful capture! For dev/demo purposes:
+            console.log('Capture result', orderData, JSON.stringify(orderData, null, 2));
+            const transaction = orderData.purchase_units[0].payments.captures[0];
+            alert(`Transaction ${transaction.status}: ${transaction.id}\n\nSee console for all available details`);
+            // When ready to go live, remove the alert and show a success message within this page. For example:
+            // const element = document.getElementById('paypal-button-container');
+            // element.innerHTML = '<h3>Thank you for your payment!</h3>';
+            // Or go to another URL:  actions.redirect('thank_you.html');
+            $.ajax(
+                {
+                    type:'POST',
+                    url:"{% url 'confirmacao_pedido' pk %}",
+                    beforeSend:function(request){
+                        request.setRequestHeader('Z-CSRFToken', csrftoken)
+                    },
+                    data: JSON.stringify({'isPaid': true}),
+                        success: function(data) {
+                            window.location.href = '/payment-confirmation/'
+                        }
+                }
+            )
+          });
+        }
+      }).render('#paypal-button-container');
+    </script>
 {% endblock content %}
