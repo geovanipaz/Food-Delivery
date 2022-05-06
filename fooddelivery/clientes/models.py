@@ -29,6 +29,7 @@ class Pedido(models.Model):
     estado = models.CharField(max_length=15, blank=True)
     cep = models.IntegerField(blank=True, null=True)
     ja_pago = models.BooleanField(default=False)
+    ja_enviado = models.BooleanField(default=False)
     
     
     def __str__(self) -> str:

@@ -3,6 +3,7 @@ from django.shortcuts import render, redirect
 from django.views import View
 from .models import Categoria, MenuItem, Pedido
 from django.core.mail import send_mail
+from django.db.models import Q
 # Create your views here.
 
 class Index(View):
@@ -37,27 +38,34 @@ class Pedidos(View):
         estado = request.POST.get('state')
         cep = request.POST.get('zip')
         
+        #cria um dicionario que vai armazenar outros dicionarios numa lista
         itens_pedido = {
             'itens':[]
         }
+        #recebe do formulario a lista dos produtos
         itens = request.POST.getlist('items[]')
         
         for item in itens:
+            #pega as informações de cada item pedido
             menu_item = MenuItem.objects.get(pk__contains=int(item))
             print('-----------',menu_item)
+            #armazena em um dicionario
             item_data = {
                 'id':menu_item.pk,
                 'nome':menu_item.nome,
                 'preco':menu_item.preco
             }
+            #a chave 'itens' vai armazenar uma lista com varios dicionarios
             itens_pedido['itens'].append(item_data)
         preco = 0
         itens_id = []
-        print(itens_pedido['itens'])
+        #print(itens_pedido['itens'])
+        #pega cada pedido(dic) e soma seus preços e coloca seus 'ids' numa lista
         for item in itens_pedido['itens']:
             preco += item['preco']
             itens_id.append(item['id'])
-            
+        
+        #cria um pedido    
         pedido = Pedido.objects.create(
             preco=preco,
             nome=nome,
@@ -106,3 +114,29 @@ class ConfirmacaoPedido(View):
 class ConfirmacaoPagPedido(View):
     def get(self, request, *args, **kwargs):
         return render(request, 'clientes/confirmacao_pag_pedido.html')
+    
+
+class Menu(View):
+    def get(self, request, *args, **kwargs):
+        menu_itens = MenuItem.objects.all()
+        
+        context={
+            'menu_items':menu_itens
+        }
+        
+        return render(request, 'clientes/menu.html', context)
+
+class MenuBusca(View):
+    def get(self, request, *args, **kwargs):
+        query = self.request.GET.get('q')
+        
+        menu_itens = MenuItem.objects.filter(
+            Q(nome__icontains=query)|
+            Q(preco__icontains=query)|
+            Q(descricao__icontains=query)
+        )
+        context={
+            'menu_items':menu_itens
+        }
+        
+        return render(request, 'clientes/menu.html', context)
